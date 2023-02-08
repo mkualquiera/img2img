@@ -1,4 +1,5 @@
 # Virtualenv
+wandb
 venv/
 data_files
 
