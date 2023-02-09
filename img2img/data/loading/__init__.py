@@ -56,6 +56,9 @@ class ReprojectionDataset:
         text_files = [file.replace(img_extension, ".txt") for file in image_files]
         pairs = list(zip(image_files, text_files))
 
+        # Shuffle the pairs
+        random.shuffle(pairs)
+
         # Load the embedders
         text_embedder = load_text_embedder()
         image_embedder = load_image_embedder()
