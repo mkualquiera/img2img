@@ -62,6 +62,7 @@ def load_texts_from_paths(text_paths: list[str]) -> list[str]:
 
     return texts
 
+
 def load_images_from_paths(image_paths: list[str]) -> list[Image.Image]:
     """Load a list of images from a list of paths.
 
@@ -79,6 +80,7 @@ def load_images_from_paths(image_paths: list[str]) -> list[Image.Image]:
     images = [Image.open(path) for path in image_paths]
     return images
 
+
 def tokenize_strings(embedder: FrozenCLIPEmbedder, strings: list[str]) -> torch.Tensor:
     """Tokenize a list of strings.
 
@@ -95,6 +97,7 @@ def tokenize_strings(embedder: FrozenCLIPEmbedder, strings: list[str]) -> torch.
         The tokenized strings.
     """
     return embedder.tokenize(strings).cpu()
+
 
 def process_images(processor: CLIPProcessor, images: list[Image.Image]) -> torch.Tensor:
     """Process a list of images.
@@ -131,9 +134,9 @@ def embed_text(
     torch.Tensor
         The embedded strings.
     """
-    with gpu_lock:
-        result = embedder.to("cuda")(tokens.to("cuda")).cpu()
+    result = embedder.to("cuda")(tokens.to("cuda")).cpu()
     return result
+
 
 def embed_images(
     embedder: FrozenCLIPImageEmbedder, images: torch.Tensor, gpu_lock: Lock
@@ -156,6 +159,7 @@ def embed_images(
         result = embedder.to("cuda")(images.to("cuda")).cpu()
     return result
 
+
 def load_text_embedder() -> FrozenCLIPEmbedder:
     """Load the CLIP text embedder.
 
@@ -166,6 +170,7 @@ def load_text_embedder() -> FrozenCLIPEmbedder:
     """
     return FrozenCLIPEmbedder(device="cpu").cpu()
 
+
 def load_image_embedder() -> FrozenCLIPImageEmbedder:
     """Load the CLIP image embedder.
 
@@ -175,6 +180,7 @@ def load_image_embedder() -> FrozenCLIPImageEmbedder:
         The CLIP embedder.
     """
     return FrozenCLIPImageEmbedder(device="cpu").cpu()
+
 
 def save_embeddings(
     old_paths: list[str], embeddings: torch.Tensor, output_path: str, disk_lock: Lock
@@ -202,9 +208,8 @@ def save_embeddings(
         os.path.join(output_path, filename) + ".tensor" for filename in old_filenames
     ]
 
-    with disk_lock:
-        for embedding, new_path in zip(embeddings, new_paths):
-            torch.save(embedding, new_path)
+    for embedding, new_path in zip(embeddings, new_paths):
+        torch.save(embedding, new_path)
 
     return new_paths
 
@@ -215,6 +220,8 @@ def embed_files_from_path(
     output_path: str,
     batch_size: int = 4,
     task_group_size: int = 16,
+    n_workers: int = 2,
+    n_thread_per_worker: int = 4,
     force: bool = False,
 ) -> None:
     """Embed a list of tokenized strings.
@@ -265,7 +272,9 @@ def embed_files_from_path(
     logger.info(f"Split into {len(task_groups)} task groups.")
 
     # Create a dask cluster
-    with LocalCluster(processes=True, n_workers=2, threads_per_worker=4) as cluster:
+    with LocalCluster(
+        processes=True, n_workers=n_workers, threads_per_worker=n_thread_per_worker
+    ) as cluster:
         with Client(cluster) as client:
             # Show dashboard
             logger.info(f"Dashboard running at {cluster.dashboard_link}")  # type: ignore
@@ -277,8 +286,12 @@ def embed_files_from_path(
                 # Create a dask task for each batch
                 tasks = []
                 for batch in task_group:
-                    loaded_files = delayed(load_images_from_paths if is_image else load_texts_from_paths)(batch)
-                    processed = delayed(process_images if is_image else tokenize_strings)(embedder_scattered, loaded_files)
+                    loaded_files = delayed(
+                        load_images_from_paths if is_image else load_texts_from_paths
+                    )(batch)
+                    processed = delayed(
+                        process_images if is_image else tokenize_strings
+                    )(embedder_scattered, loaded_files)
                     embeddings = delayed(embed_text)(
                         embedder_scattered, processed, gpu_lock
                     )
@@ -294,7 +307,6 @@ def embed_files_from_path(
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -330,6 +342,20 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--n_workers",
+        type=int,
+        help="The number of workers to use.",
+        default=2,
+    )
+
+    parser.add_argument(
+        "--n_thread_per_worker",
+        type=int,
+        help="The number of threads per worker to use.",
+        default=4,
+    )
+
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Whether to overwrite the output path if it already exists.",
@@ -343,5 +369,7 @@ if __name__ == "__main__":
         args.output_path,
         args.batch_size,
         args.task_group_size,
+        args.n_workers,
+        args.n_thread_per_worker,
         args.force,
     )

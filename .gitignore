@@ -3,6 +3,9 @@ wandb
 venv/
 data_files
 
+*.err
+*.out
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
