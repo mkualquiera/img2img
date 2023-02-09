@@ -10,13 +10,12 @@ import numpy as np
 import torch
 import tqdm
 from dask.delayed import delayed
-from dask.distributed import Client, LocalCluster, Lock
+from dask.distributed import Client, LocalCluster
 from loguru import logger
 from PIL import Image
 from transformers import CLIPProcessor
 
-from img2img.models.embedders import (FrozenCLIPEmbedder,
-                                      FrozenCLIPImageEmbedder)
+from img2img.models.embedders import FrozenCLIPEmbedder, FrozenCLIPImageEmbedder
 
 
 def get_file_list(base_path: str, extension: str) -> list[str]:
@@ -118,9 +117,7 @@ def process_images(processor: CLIPProcessor, images: list[Image.Image]) -> torch
     return torch.tensor(np.array(processor(images=images)["pixel_values"]))
 
 
-def embed_text(
-    embedder: FrozenCLIPEmbedder, tokens: torch.Tensor, gpu_lock: Lock
-) -> torch.Tensor:
+def embed_text(embedder: FrozenCLIPEmbedder, tokens: torch.Tensor) -> torch.Tensor:
     """Embed a list of tokenized strings.
 
     Parameters
@@ -140,7 +137,7 @@ def embed_text(
 
 
 def embed_images(
-    embedder: FrozenCLIPImageEmbedder, images: torch.Tensor, gpu_lock: Lock
+    embedder: FrozenCLIPImageEmbedder, images: torch.Tensor
 ) -> torch.Tensor:
     """Embed a list of images.
 
@@ -156,8 +153,7 @@ def embed_images(
     torch.Tensor
         The embedded images.
     """
-    with gpu_lock:
-        result = embedder.to("cuda")(images.to("cuda")).cpu()
+    result = embedder.to("cuda")(images.to("cuda")).cpu()
     return result
 
 
@@ -184,7 +180,7 @@ def load_image_embedder() -> FrozenCLIPImageEmbedder:
 
 
 def save_embeddings(
-    old_paths: list[str], embeddings: torch.Tensor, output_path: str, disk_lock: Lock
+    old_paths: list[str], embeddings: torch.Tensor, output_path: str
 ) -> list[str]:
     """Save a list of embeddings to a path.
 
@@ -284,8 +280,6 @@ def embed_files_from_path(
             # Scatter the embedder to the cluster
             embedder_scattered = client.scatter(embedder)
             processor_scattered = client.scatter(processor)
-            gpu_lock = Lock(name="gpu_lock")
-            disk_lock = Lock(name="disk_lock")
             for task_group in tqdm.tqdm(task_groups, desc="Embedding files"):
                 # Create a dask task for each batch
                 tasks = []
@@ -297,11 +291,9 @@ def embed_files_from_path(
                         process_images if is_image else tokenize_strings
                     )(processor_scattered, loaded_files)
                     embeddings = delayed(embed_images if is_image else embed_text)(
-                        embedder_scattered, processed, gpu_lock
+                        embedder_scattered, processed
                     )
-                    new_paths = delayed(save_embeddings)(
-                        batch, embeddings, output_path, disk_lock
-                    )
+                    new_paths = delayed(save_embeddings)(batch, embeddings, output_path)
                     tasks.append(new_paths)
 
                 # Compute the tasks
