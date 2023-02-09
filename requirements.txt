@@ -1,3 +1,4 @@
+dask==2022.7.0
 datasets==2.9.0
 img2dataset==1.41.0
 joblib==1.2.0
@@ -10,4 +11,3 @@ requests==2.28.2
 torch==1.13.1
 tqdm==4.64.1
 transformers==4.26.0
-wandb==0.12.21

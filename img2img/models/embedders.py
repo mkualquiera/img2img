@@ -3,7 +3,7 @@
 
 import torch
 import torch.nn as nn
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTextModel, CLIPTokenizer, CLIPVisionModel
 
 
 class FrozenCLIPEmbedder(nn.Module):
@@ -60,3 +60,27 @@ class FrozenCLIPEmbedder(nn.Module):
 
     def encode(self, text):
         return self(text)
+
+
+class FrozenCLIPImageEmbedder(nn.Module):
+    """Uses the CLIP transformer encoder for images (from Hugging Face)"""
+
+    def __init__(self, version="openai/clip-vit-large-patch14", device="cuda"):
+        super().__init__()
+        self.transformer = CLIPVisionModel.from_pretrained(version).to(device)
+        self.device = device
+        self.freeze()
+
+    def freeze(self):
+        self.transformer = self.transformer.eval()
+        for param in self.parameters():
+            param.requires_grad = False
+
+    def forward(self, image):
+        image = image.to(self.device)
+        outputs = self.transformer(image)
+        z = outputs.last_hidden_state
+        return z
+
+    def encode(self, image):
+        return self(image)

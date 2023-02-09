@@ -2,16 +2,20 @@
 images and text and encoding them using the encoder models.
 """
 
+import argparse
 import os
 import shutil
 
+import numpy as np
 import torch
 import tqdm
 from dask.delayed import delayed
 from dask.distributed import Client, LocalCluster, Lock
 from loguru import logger
+from PIL import Image
+from transformers import CLIPProcessor
 
-from img2img.models.embedders import FrozenCLIPEmbedder
+from img2img.models.embedders import FrozenCLIPEmbedder, FrozenCLIPImageEmbedder
 
 
 def get_file_list(base_path: str, extension: str) -> list[str]:
@@ -37,7 +41,7 @@ def get_file_list(base_path: str, extension: str) -> list[str]:
     ]
 
 
-def load_texts_from_paths(text_paths: list[str], disk_lock: Lock) -> list[str]:
+def load_texts_from_paths(text_paths: list[str]) -> list[str]:
     """Load a list of texts from a list of paths.
 
     Parameters
@@ -58,6 +62,22 @@ def load_texts_from_paths(text_paths: list[str], disk_lock: Lock) -> list[str]:
 
     return texts
 
+def load_images_from_paths(image_paths: list[str]) -> list[Image.Image]:
+    """Load a list of images from a list of paths.
+
+    Parameters
+    ----------
+    image_paths : list[str]
+        The paths to load from.
+
+    Returns
+    -------
+    list[Image.Image]
+        The loaded images.
+    """
+
+    images = [Image.open(path) for path in image_paths]
+    return images
 
 def tokenize_strings(embedder: FrozenCLIPEmbedder, strings: list[str]) -> torch.Tensor:
     """Tokenize a list of strings.
@@ -75,6 +95,23 @@ def tokenize_strings(embedder: FrozenCLIPEmbedder, strings: list[str]) -> torch.
         The tokenized strings.
     """
     return embedder.tokenize(strings).cpu()
+
+def process_images(processor: CLIPProcessor, images: list[Image.Image]) -> torch.Tensor:
+    """Process a list of images.
+
+    Parameters
+    ----------
+    processor : CLIPProcessor
+        The processor to use.
+    images : list[Image.Image]
+        The images to process.
+
+    Returns
+    -------
+    torch.Tensor
+        The processed images.
+    """
+    return torch.tensor(np.array(processor(images=images)["pixel_values"]))
 
 
 def embed_text(
@@ -98,9 +135,29 @@ def embed_text(
         result = embedder.to("cuda")(tokens.to("cuda")).cpu()
     return result
 
+def embed_images(
+    embedder: FrozenCLIPImageEmbedder, images: torch.Tensor, gpu_lock: Lock
+) -> torch.Tensor:
+    """Embed a list of images.
 
-def load_embedder() -> FrozenCLIPEmbedder:
-    """Load the CLIP embedder.
+    Parameters
+    ----------
+    embedder : FrozenCLIPImageEmbedder
+        The embedder to use.
+    images : torch.Tensor
+        The images to embed.
+
+    Returns
+    -------
+    torch.Tensor
+        The embedded images.
+    """
+    with gpu_lock:
+        result = embedder.to("cuda")(images.to("cuda")).cpu()
+    return result
+
+def load_text_embedder() -> FrozenCLIPEmbedder:
+    """Load the CLIP text embedder.
 
     Returns
     -------
@@ -109,6 +166,15 @@ def load_embedder() -> FrozenCLIPEmbedder:
     """
     return FrozenCLIPEmbedder(device="cpu").cpu()
 
+def load_image_embedder() -> FrozenCLIPImageEmbedder:
+    """Load the CLIP image embedder.
+
+    Returns
+    -------
+    FrozenCLIPImageEmbedder
+        The CLIP embedder.
+    """
+    return FrozenCLIPImageEmbedder(device="cpu").cpu()
 
 def save_embeddings(
     old_paths: list[str], embeddings: torch.Tensor, output_path: str, disk_lock: Lock
@@ -143,8 +209,8 @@ def save_embeddings(
     return new_paths
 
 
-def embed_texts_from_path(
-    embedder: FrozenCLIPEmbedder,
+def embed_files_from_path(
+    embedder: FrozenCLIPEmbedder | FrozenCLIPImageEmbedder,
     input_path: str,
     output_path: str,
     batch_size: int = 4,
@@ -155,7 +221,7 @@ def embed_texts_from_path(
 
     Parameters
     ----------
-    embedder : FrozenCLIPEmbedder
+    embedder : FrozenCLIPEmbedder | FrozenCLIPImageEmbedder
         The embedder to use.
     input_path : str
         The path to the input text.
@@ -169,6 +235,8 @@ def embed_texts_from_path(
     force : bool, optional
         Whether to overwrite the output path if it already exists, by default False
     """
+
+    is_image = isinstance(embedder, FrozenCLIPImageEmbedder)
 
     if not force:
         if os.path.exists(output_path):
@@ -196,11 +264,6 @@ def embed_texts_from_path(
     ]
     logger.info(f"Split into {len(task_groups)} task groups.")
 
-    # bs=4, tgs=2, nworkers=4, tworker=2 -> 40:00
-    # bs=4, tgs=8, nworkers=2, tworker=2 -> 18:00
-    # bs=4, tgs=16, nworkers=2, tworker=2 -> 30:00
-    # bs=4, tgs=8, nworkers=2, tworker=4 -> 19:00
-
     # Create a dask cluster
     with LocalCluster(processes=True, n_workers=2, threads_per_worker=4) as cluster:
         with Client(cluster) as client:
@@ -210,14 +273,14 @@ def embed_texts_from_path(
             embedder_scattered = client.scatter(embedder)
             gpu_lock = Lock(name="gpu_lock")
             disk_lock = Lock(name="disk_lock")
-            for task_group in tqdm.tqdm(task_groups, desc="Embedding text"):
+            for task_group in tqdm.tqdm(task_groups, desc="Embedding files"):
                 # Create a dask task for each batch
                 tasks = []
                 for batch in task_group:
-                    texts = delayed(load_texts_from_paths)(batch, disk_lock)
-                    tokens = delayed(tokenize_strings)(embedder_scattered, texts)
+                    loaded_files = delayed(load_images_from_paths if is_image else load_texts_from_paths)(batch)
+                    processed = delayed(process_images if is_image else tokenize_strings)(embedder_scattered, loaded_files)
                     embeddings = delayed(embed_text)(
-                        embedder_scattered, tokens, gpu_lock
+                        embedder_scattered, processed, gpu_lock
                     )
                     new_paths = delayed(save_embeddings)(
                         batch, embeddings, output_path, disk_lock
@@ -231,8 +294,54 @@ def embed_texts_from_path(
 
 
 if __name__ == "__main__":
-    embed_texts_from_path(
-        load_embedder(),
-        "data_files/downloaded/laion6p0",
-        "data_files/embedded/laion6p0",
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--input_path",
+        type=str,
+        help="The path to the input files.",
+        required=True,
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        help="The path to the output files.",
+        required=True,
+    )
+    parser.add_argument(
+        "--is_image",
+        action="store_true",
+        help="Whether the input is image files.",
+    )
+
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        help="The batch size to use.",
+        default=4,
+    )
+
+    parser.add_argument(
+        "--task_group_size",
+        type=int,
+        help="The number of batches to group together into a single dask compute call.",
+        default=16,
+    )
+
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Whether to overwrite the output path if it already exists.",
+    )
+
+    args = parser.parse_args()
+
+    embed_files_from_path(
+        load_image_embedder() if args.is_image else load_text_embedder(),
+        args.input_path,
+        args.output_path,
+        args.batch_size,
+        args.task_group_size,
+        args.force,
     )
