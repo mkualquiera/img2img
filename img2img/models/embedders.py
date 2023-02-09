@@ -28,7 +28,19 @@ class FrozenCLIPEmbedder(nn.Module):
         for param in self.parameters():
             param.requires_grad = False
 
-    def tokenize(self, text: str) -> torch.Tensor:
+    def tokenize(self, text: list[str]) -> torch.Tensor:
+        """Tokenize a list of strings.
+
+        Parameters
+        ----------
+        text : list[str]
+            List of strings to tokenize
+
+        Returns
+        -------
+        torch.Tensor
+            Tokenized text
+        """
         tokens = self.tokenizer(
             text,
             truncation=True,
