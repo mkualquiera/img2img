@@ -15,7 +15,8 @@ from loguru import logger
 from PIL import Image
 from transformers import CLIPProcessor
 
-from img2img.models.embedders import FrozenCLIPEmbedder, FrozenCLIPImageEmbedder
+from img2img.models.embedders import (FrozenCLIPEmbedder,
+                                      FrozenCLIPImageEmbedder)
 
 
 def get_file_list(base_path: str, extension: str) -> list[str]:
@@ -245,17 +246,19 @@ def embed_files_from_path(
 
     is_image = isinstance(embedder, FrozenCLIPImageEmbedder)
 
-    if not force:
-        if os.path.exists(output_path):
-            if input("Output path already exists. Overwrite? [y/N] ") == "y":
-                shutil.rmtree(output_path)
-            else:
-                logger.error("Output path already exists. Exiting.")
+    if os.path.exists(output_path):
+        if (not force) and input(
+            "Output path already exists. Overwrite? [y/N] "
+        ) != "y":
+            logger.error("Output path already exists. Exiting.")
+            return
+        shutil.rmtree(output_path)
 
     # Create the output path
     os.makedirs(output_path, exist_ok=True)
 
-    filenames = get_file_list(input_path, ".txt")
+    filenames = get_file_list(input_path, ".jpg" if is_image else ".txt")
+    processor = embedder.get_processor() if is_image else embedder
     logger.info(f"Found {len(filenames)} files to embed.")
 
     # Split into batches. Last batch may be smaller than batch_size
@@ -280,6 +283,7 @@ def embed_files_from_path(
             logger.info(f"Dashboard running at {cluster.dashboard_link}")  # type: ignore
             # Scatter the embedder to the cluster
             embedder_scattered = client.scatter(embedder)
+            processor_scattered = client.scatter(processor)
             gpu_lock = Lock(name="gpu_lock")
             disk_lock = Lock(name="disk_lock")
             for task_group in tqdm.tqdm(task_groups, desc="Embedding files"):
@@ -291,8 +295,8 @@ def embed_files_from_path(
                     )(batch)
                     processed = delayed(
                         process_images if is_image else tokenize_strings
-                    )(embedder_scattered, loaded_files)
-                    embeddings = delayed(embed_text)(
+                    )(processor_scattered, loaded_files)
+                    embeddings = delayed(embed_images if is_image else embed_text)(
                         embedder_scattered, processed, gpu_lock
                     )
                     new_paths = delayed(save_embeddings)(

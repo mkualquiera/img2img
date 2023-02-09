@@ -3,7 +3,7 @@
 
 import torch
 import torch.nn as nn
-from transformers import CLIPTextModel, CLIPTokenizer, CLIPVisionModel
+from transformers import CLIPProcessor, CLIPTextModel, CLIPTokenizer, CLIPVisionModel
 
 
 class FrozenCLIPEmbedder(nn.Module):
@@ -67,8 +67,8 @@ class FrozenCLIPImageEmbedder(nn.Module):
 
     def __init__(self, version="openai/clip-vit-large-patch14", device="cuda"):
         super().__init__()
+        self.version = version
         self.transformer = CLIPVisionModel.from_pretrained(version).to(device)
-        self.device = device
         self.freeze()
 
     def freeze(self):
@@ -77,10 +77,13 @@ class FrozenCLIPImageEmbedder(nn.Module):
             param.requires_grad = False
 
     def forward(self, image):
-        image = image.to(self.device)
         outputs = self.transformer(image)
         z = outputs.last_hidden_state
         return z
 
     def encode(self, image):
         return self(image)
+
+    def get_processor(self):
+        """Get the CLIP processor for this embedder."""
+        return CLIPProcessor.from_pretrained(self.version)
