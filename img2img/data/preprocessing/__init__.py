@@ -91,7 +91,7 @@ def tokenize_strings(embedder: FrozenCLIPEmbedder, strings: list[str]) -> torch.
     list[str]
         The tokenized strings.
     """
-    return embedder.tokenize(strings).cpu()
+    return embedder.tokenize(strings)
 
 
 def process_images(processor: CLIPProcessor, images: list[Image.Image]) -> torch.Tensor:
@@ -127,7 +127,7 @@ def embed_text(embedder: FrozenCLIPEmbedder, tokens: torch.Tensor) -> torch.Tens
     torch.Tensor
         The embedded strings.
     """
-    result = embedder.to("cuda")(tokens.to("cuda")).cpu()
+    result = embedder.to("cuda")(tokens.to("cuda"))
     return result
 
 
@@ -148,7 +148,7 @@ def embed_images(
     torch.Tensor
         The embedded images.
     """
-    result = embedder.to("cuda")(images.to("cuda")).cpu()
+    result = embedder.to("cuda")(images.to("cuda"))
     return result
 
 
@@ -160,7 +160,7 @@ def load_text_embedder() -> FrozenCLIPEmbedder:
     FrozenCLIPEmbedder
         The CLIP embedder.
     """
-    return FrozenCLIPEmbedder(device="cpu").cpu()
+    return FrozenCLIPEmbedder(device="cuda")
 
 
 def load_image_embedder() -> FrozenCLIPImageEmbedder:
@@ -171,7 +171,7 @@ def load_image_embedder() -> FrozenCLIPImageEmbedder:
     FrozenCLIPImageEmbedder
         The CLIP embedder.
     """
-    return FrozenCLIPImageEmbedder(device="cpu").cpu()
+    return FrozenCLIPImageEmbedder(device="cuda")
 
 
 def save_embeddings(

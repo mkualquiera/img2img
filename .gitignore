@@ -6,6 +6,8 @@ data_files
 *.err
 *.out
 
+runs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

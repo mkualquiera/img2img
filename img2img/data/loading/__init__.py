@@ -7,6 +7,8 @@ import torch
 from transformers import CLIPProcessor
 
 from img2img.data.preprocessing import (
+    embed_images,
+    embed_text,
     get_file_list,
     load_image_embedder,
     load_images_from_paths,
@@ -147,8 +149,8 @@ class TranslatorDatasetIterator:
         )
 
         embedded_images, embedded_texts = (
-            self.dataset.image_embedder(processed_images),
-            self.dataset.text_embedder(tokenized_texts),
+            embed_images(self.dataset.image_embedder, processed_images),
+            embed_text(self.dataset.text_embedder, tokenized_texts),
         )
 
         self.batch_index = batch_end
