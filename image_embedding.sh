@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=accel-2
+#SBATCH --partition=accel
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

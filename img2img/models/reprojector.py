@@ -3,7 +3,8 @@
 import torch
 import torch.nn
 import torch.nn.functional
-from mixer import MLPMixerBlock
+
+from img2img.models.mixer import MLPMixerBlock
 
 
 class SimpleReprojectorModel(torch.nn.Module):

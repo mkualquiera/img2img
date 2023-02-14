@@ -7,9 +7,10 @@ import time
 
 import joblib
 import torch
-import wandb
 from mixer import MLPMixerBlock
 from tqdm import tqdm
+
+import wandb
 
 # set random seeds
 random.seed(42)
@@ -22,7 +23,6 @@ class TranslatorDataset:
 
     @staticmethod
     def from_path(path: str, batch_size: int):
-
         # Get all joblib files recursively using walk
         joblibs = []
         for root, dirs, files in os.walk(path):
@@ -57,12 +57,10 @@ class TranslatorDatasetIterator:
         return self
 
     def __next__(self):
-
         while (
             self.remainder is None
             or len(self.remainder["image_embeddings"]) < self.dataset.batch_size
         ):
-
             curr_file = self.dataset.files[self.index]
 
             tstart = time.time()
@@ -341,7 +339,6 @@ def optimize_lr(
     starting_lr: float = 10**-10,
     max_lr: float = 10,
 ):
-
     # Load the loss function
     mse_loss_fn = torch.nn.MSELoss()
 
@@ -353,7 +350,6 @@ def optimize_lr(
     current_lr = starting_lr
 
     while current_lr < max_lr:
-
         random.seed(0)
 
         # Load the dataset
@@ -379,7 +375,6 @@ def optimize_lr(
         # Train
 
         for iteration in tqdm(range(iters + 1)):
-
             batch = next(train_dataset)
 
             # Move to cuda
