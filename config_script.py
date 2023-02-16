@@ -10,7 +10,7 @@ def clean_queue_paths(username: str) -> None:
     """Cleans the queue paths."""
     queue_paths = [
         os.path.join(os.getcwd(), "assets/configs/queue"),
-        os.path.join(os.getcwd(), "jobs_queue"),
+        os.path.join(os.getcwd(), "job_queue"),
     ]
     for queue_path in queue_paths:
         if os.path.exists(queue_path):
