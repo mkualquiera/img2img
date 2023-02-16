@@ -108,6 +108,7 @@ def write_template(template: jinja2.Template, config_path: str, username: str) -
 
 def run_script(script_path: str) -> None:
     """Runs the script."""
+    os.system(f"chmod 774 {script_path}")
     os.system(f"sbatch {script_path}")
 
 
