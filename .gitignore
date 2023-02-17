@@ -1,6 +1,7 @@
 # jobs in queue
 assets/configs/queue/
 job_queue/
+logs/
 
 # Virtualenv
 wandb
