@@ -71,7 +71,6 @@ def preprocess(
     )
 
     for batch_start in tqdm.tqdm(range(0, len(image_paths), batch_size)):
-
         batch_end = min(batch_start + batch_size, len(image_paths))
         # print(f"Processing batch {batch_start}-{batch_end}")
         batch = image_paths[batch_start:batch_end]
@@ -167,7 +166,6 @@ from train_translator import MixerTranslatorModel
 
 
 def sample(image_path: str, output_path: str, output_embedding_path: str):
-
     image = Image.open(image_path)
 
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
