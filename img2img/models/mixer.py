@@ -15,10 +15,25 @@ class MLPBlock(torch.nn.Module):
         The second linear layer.
     """
 
-    def __init__(self, input_size: int, hidden_size: int, output_size: int):
+    def __init__(
+        self, input_size: int, hidden_size: int, output_size: int, activation: str
+    ):
         super().__init__()
         self.linear1 = torch.nn.Linear(input_size, hidden_size)
         self.linear2 = torch.nn.Linear(hidden_size, output_size)
+
+        if activation == "gelu":
+            self.activation = torch.nn.functional.gelu
+        elif activation == "relu":
+            self.activation = torch.nn.functional.relu
+        elif activation == "tanh":
+            self.activation = torch.nn.functional.tanh
+        elif activation == "sigmoid":
+            self.activation = torch.nn.functional.sigmoid
+        elif activation == "linear":
+            self.activation = lambda x: x
+        else:
+            raise ValueError(f"Unknown activation {activation}")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the module.
@@ -35,7 +50,7 @@ class MLPBlock(torch.nn.Module):
         """
 
         x = self.linear1(x)
-        x = torch.nn.functional.gelu(x)
+        x = self.activation(x)
         x = self.linear2(x)
         return x
 
@@ -55,10 +70,20 @@ class MLPMixerBlock(torch.nn.Module):
         The second layer norm.
     """
 
-    def __init__(self, minibatch_shape, mlp1_hidden_size, mlp2_hidden_size):
+    def __init__(
+        self,
+        minibatch_shape: tuple[int, int],
+        mlp1_hidden_size: int,
+        mlp2_hidden_size: int,
+        activation: str,
+    ):
         super().__init__()
-        self.mlp1 = MLPBlock(minibatch_shape[0], mlp1_hidden_size, minibatch_shape[0])
-        self.mlp2 = MLPBlock(minibatch_shape[1], mlp2_hidden_size, minibatch_shape[1])
+        self.mlp1 = MLPBlock(
+            minibatch_shape[0], mlp1_hidden_size, minibatch_shape[0], activation
+        )
+        self.mlp2 = MLPBlock(
+            minibatch_shape[1], mlp2_hidden_size, minibatch_shape[1], activation
+        )
         self.layernorm1 = torch.nn.LayerNorm(minibatch_shape)
         self.layernorm2 = torch.nn.LayerNorm(minibatch_shape)
 

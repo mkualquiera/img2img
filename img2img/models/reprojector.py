@@ -11,7 +11,7 @@ class SimpleReprojectorModel(torch.nn.Module):
     """Simplest reprojector model. Basically just two linear layers."""
 
     def __init__(
-        self, image_embedder_dims: tuple[int, int], text_embedder_dims: tuple[int, int]
+        self, image_embedder_dims: tuple[int, int], text_embedder_dims: tuple[int, int], activation: str
     ):
         super().__init__()
         self.first_stage = torch.nn.Linear(
@@ -20,6 +20,19 @@ class SimpleReprojectorModel(torch.nn.Module):
         self.second_stage = torch.nn.Linear(
             image_embedder_dims[0], text_embedder_dims[0]
         )
+
+        if activation == "gelu":
+            self.activation = torch.nn.functional.gelu
+        elif activation == "relu":
+            self.activation = torch.nn.functional.relu
+        elif activation == "tanh":
+            self.activation = torch.nn.functional.tanh
+        elif activation == "sigmoid":
+            self.activation = torch.nn.functional.sigmoid
+        elif activation == "linear":
+            self.activation = lambda x: x
+        else:
+            raise ValueError(f"Unknown activation {activation}")
 
     def forward(self, image_embeddings: torch.Tensor) -> torch.Tensor:
         """Run the forward pass of the model.
@@ -38,7 +51,7 @@ class SimpleReprojectorModel(torch.nn.Module):
         values = self.first_stage(image_embeddings)
         # x is (batch_size, image_embedder_dims[0], text_embedder_dims[1])
         # relu
-        values = torch.nn.functional.relu(values)
+        values = self.activation(values)
         # transpose x to (batch_size, text_embedder_dims[1], image_embedder_dims[0])
         values = values.transpose(1, 2)
         # x is (batch_size, text_embedder_dims[1], image_embedder_dims[0])
@@ -60,17 +73,22 @@ class MixerReprojectorModel(torch.nn.Module):
         image_embedder_dims: tuple[int, int],
         text_embedder_dims: tuple[int, int],
         hidden_size: int,
-        num_layers: int,
+        block_activations: list[str],
+        reprojector_activation: str,
     ):
         super().__init__()
+
+        if not block_activations:
+            raise ValueError("activations must not be empty")
+
         self.first_stage = torch.nn.Sequential(
             *[
-                MLPMixerBlock(image_embedder_dims, hidden_size, hidden_size)
-                for _ in range(num_layers)
+                MLPMixerBlock(image_embedder_dims, hidden_size, hidden_size, activation)
+                for activation in block_activations
             ]
         )
         self.second_stage = SimpleReprojectorModel(
-            image_embedder_dims, text_embedder_dims
+            image_embedder_dims, text_embedder_dims, reprojector_activation
         )
 
     def forward(self, image_embeddings: torch.Tensor) -> torch.Tensor:
