@@ -11,7 +11,8 @@
                 768
             ],
             "hidden_size": 128,
-            "num_layers": 2
+            "block_activations": [],
+            "reprojector_activation": ""
         },
         "args": []
     },

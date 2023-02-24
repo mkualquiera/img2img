@@ -37,8 +37,8 @@ def read_and_modify_json(args: dict) -> dict:
     """Reads the base config and modifies it according to the arguments passed."""
     with open(os.path.join(os.getcwd(), "assets/configs/base.json"), "r") as f:
         config = json.load(f)
-
-    config["model"]["kwargs"]["num_layers"] = args["num_layers"]
+    config["model"]["kwargs"]["block_activations"] = args["block_activations"]
+    config["model"]["kwargs"]["reprojector_activation"] = args["reprojector_activation"]
     return config
 
 
@@ -115,10 +115,17 @@ def run_script(script_path: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--num_layers",
-        type=int,
-        default=2,
-        help="Number of layers of MixerProjectorModel.",
+        "--block_activations",
+        type=str,
+        nargs="+",
+        default=[],
+        help="Activations to use in the model.",
+    )
+    parser.add_argument(
+        "--reprojector_activation",
+        type=str,
+        default="",
+        help="Activation to use in the reprojector.",
     )
     args = parser.parse_args()
 

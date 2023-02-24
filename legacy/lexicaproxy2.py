@@ -11,7 +11,6 @@ from mitmproxy import ctx, http
 
 
 def response(flow: http.HTTPFlow) -> None:
-
     # The url will look like
     # https://lexica.art/api/trpc/prompts.infinitePrompts?batch=1&input={%220%22:{%22json%22:{%22text%22:%22%22,%22searchMode%22:%22images%22,%22source%22:%22search%22,%22cursor%22:0}}}
 
@@ -19,7 +18,6 @@ def response(flow: http.HTTPFlow) -> None:
         "lexica.art" in flow.request.pretty_url
         and "infinitePrompts" in flow.request.pretty_url
     ):
-
         # Parse the json
         data = json.loads(flow.response.text)
 

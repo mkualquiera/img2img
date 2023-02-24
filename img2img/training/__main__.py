@@ -64,6 +64,7 @@ def train(
 
     # Create the wandb run.
     wandb.init(
+        entity="img2img-eafit",
         project=wandb_project,
         name=run_name,
         config={

@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --time=01:00:00
 #SBATCH --job-name=text_embedding
-#SBATCH --output=job_%j.out
-#SBATCH --error=job_%j.err
+#SBATCH --output=logs/job_%j.out
+#SBATCH --error=logs/job_%j.err
 #SBATCH --mem=32GB
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user={{ email }}
