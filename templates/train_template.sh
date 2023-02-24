@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --partition=accel
+#SBATCH --partition=accel-2
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --time=01:00:00
-#SBATCH --job-name=text_embedding
+#SBATCH --job-name=reprojector_train
 #SBATCH --output=logs/job_%j.out
 #SBATCH --error=logs/job_%j.err
 #SBATCH --mem=32GB
@@ -29,8 +29,8 @@ python -m img2img.training \
     --seed 42 \
     --data_split 0.8 \
     --gradient_accumulation_steps 1 \
-    --batch_size 32 \
-    --training_steps 1000 \
+    --batch_size 64 \
+    --training_steps 2000 \
     --validation_frequency 100 \
     --checkpoint_frequency 250 \
     --benchmarks_path assets/benchmarks/ \

@@ -10,9 +10,11 @@
                 77,
                 768
             ],
-            "hidden_size": 128,
-            "block_activations": [],
-            "reprojector_activation": ""
+            "hidden_size": 4096,
+            "block_activations": [
+                "linear"
+            ],
+            "reprojector_activation": "linear"
         },
         "args": []
     },

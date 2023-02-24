@@ -5,12 +5,12 @@ import argparse
 import os
 
 import torch
-from loguru import logger
-from tqdm import tqdm
-
 import wandb
 from img2img.config import load_model
 from img2img.data.loading import ReprojectionDataset
+from img2img.utils.inference import sample_images
+from loguru import logger
+from tqdm import tqdm
 
 
 def train(
@@ -86,7 +86,7 @@ def train(
     wandb.watch(model)
 
     # Train the model.
-    for step in tqdm(range(training_steps)):
+    for step in tqdm(range(training_steps + 1)):
         # Get the next batch of data.
         training_embedded_images, training_embedded_texts = next(
             training_dataset_iterator
@@ -161,6 +161,8 @@ def train(
                     if f.endswith(".pt")
                 ]
 
+                all_predicted = []
+
                 for benchmark_file in benchmark_files:
                     # Load the image embedding.
                     image_embedding = torch.load(benchmark_file).to("cuda")
@@ -169,6 +171,7 @@ def train(
 
                     # Run the model.
                     predicted_text_embedding = model(image_embedding)
+                    all_predicted.append(predicted_text_embedding)
 
                     # Save the predicted text embedding.
                     basename = os.path.basename(benchmark_file)
@@ -180,6 +183,19 @@ def train(
 
                     if upload_checkpoints_to_wandb:
                         wandb.save(result_path)
+
+                images = sample_images(all_predicted, seed, 3)
+
+                for imgs_embed, filepath in zip(images, benchmark_files):
+                    wandb.log(
+                        {
+                            f"benchmark_{os.path.basename(filepath)}": [
+                                wandb.Image(img) for img in imgs_embed
+                            ],
+                            "step": step,
+                        },
+                        step=step,
+                    )
 
     # Save the final model.
     torch.save(model.state_dict(), os.path.join(run_path, "model.pt"))

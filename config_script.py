@@ -1,6 +1,6 @@
-import os
 import argparse
 import json
+import os
 
 import jinja2
 from jinja2 import Environment, FileSystemLoader
@@ -37,8 +37,8 @@ def read_and_modify_json(args: dict) -> dict:
     """Reads the base config and modifies it according to the arguments passed."""
     with open(os.path.join(os.getcwd(), "assets/configs/base.json"), "r") as f:
         config = json.load(f)
-    config["model"]["kwargs"]["block_activations"] = args["block_activations"]
-    config["model"]["kwargs"]["reprojector_activation"] = args["reprojector_activation"]
+    # config["model"]["kwargs"]["block_activations"] = args["block_activations"]
+    # config["model"]["kwargs"]["reprojector_activation"] = args["reprojector_activation"]
     return config
 
 
