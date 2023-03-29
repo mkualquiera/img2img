@@ -53,17 +53,17 @@ def get_last_number_in_queue(queue_path: str, username: str) -> int:
         user_config_queue = []
         for file in os.listdir(queue_path):
             if file.startswith(username):
-                user_config_queue.append(file)
+                number = int(file.split("_")[-1].split(".")[0])
+                user_config_queue.append(number)
+        user_config_queue = sorted(user_config_queue)
 
         if user_config_queue:
             # If user has configs in the queue, get the last config and increment the number
-            last_config_in_queue = sorted(user_config_queue)[-1]
-            current_queue_number = (
-                int(last_config_in_queue.split("_")[-1].split(".")[0]) + 1
-            )
+            current_queue_number = user_config_queue[-1] + 1
         else:
             # If user does not have configs in the queue, start from 1
             current_queue_number = 1
+
     return current_queue_number
 
 
@@ -128,6 +128,8 @@ if __name__ == "__main__":
         help="Activation to use in the reprojector.",
     )
     args = parser.parse_args()
+
+    print("Running config script...")
 
     username = os.popen("whoami").read().strip()
     look_for_jobs_in_queue(username)

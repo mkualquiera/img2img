@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=01:00:00
+#SBATCH --time=12:00:00
 #SBATCH --job-name=reprojector_train
 #SBATCH --output=logs/job_%j.out
 #SBATCH --error=logs/job_%j.err
@@ -28,8 +28,8 @@ python -m img2img.training \
     --model_config_path {{ config_path }} \
     --seed 42 \
     --data_split 0.8 \
-    --gradient_accumulation_steps 1 \
-    --batch_size 64 \
+    --gradient_accumulation_steps 8 \
+    --batch_size 768 \
     --training_steps 2000 \
     --validation_frequency 100 \
     --checkpoint_frequency 250 \

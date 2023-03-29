@@ -17,16 +17,17 @@ def image_grid(imgs, rows, cols):
 
 
 def sample_images(
-    embeddings: list[torch.Tensor], seed: int = 42, num_img: int = 4
+    embeddings: torch.Tensor, seed: int | torch.Tensor = 42, num_img: int = 4
 ) -> list[list[Image]]:
     """Samples images using the embeddings.
 
     Parameters
     ----------
-    embeddings : list[torch.Tensor]
+    embeddings : torch.Tensor
         Embeddings to sample images from. (batch_size, a, b)
-    seed : int, optional
-        Seed for reproducibility, by default 42
+    seed : int or torch.Tensor, optional
+        Seed for reproducibility, by default 42, or a torch tensor with
+        shape (batch_size, a, b) for a custom latent vector.
     num_img : int, optional
         The number of images to sample for each embedding, by default 4
 
@@ -41,13 +42,20 @@ def sample_images(
     )
     pipeline = pipeline.to("cuda")  # type: ignore
 
-    generator = torch.Generator("cuda").manual_seed(seed)
+    if isinstance(seed, int):
+        generator = torch.Generator("cuda").manual_seed(seed)
+        latents = None
+    else:
+        generator = None
+        latents = seed.to(torch.float16).to("cuda")
 
     results = [
         pipeline(
             prompt_embeds=emb,  # type: ignore
             num_images_per_prompt=num_img,
             generator=generator,
+            guidance_scale=16.5,
+            latents=latents,  # type: ignore
         ).images  # type: ignore
         for emb in embeddings
     ]
