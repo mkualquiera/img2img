@@ -184,6 +184,9 @@ def train(
                     if upload_checkpoints_to_wandb:
                         wandb.save(result_path)
 
+                # stack all predicted embeddings
+                all_predicted = torch.concat(all_predicted)
+
                 images = sample_images(all_predicted, seed, 3)
 
                 for imgs_embed, filepath in zip(images, benchmark_files):

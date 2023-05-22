@@ -72,7 +72,7 @@ def load_images_from_paths(image_paths: list[str]) -> list[Image.Image]:
         The loaded images.
     """
 
-    images = [Image.open(path) for path in image_paths]
+    images = [Image.open(path).convert("RGB") for path in image_paths]
     return images
 
 

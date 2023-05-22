@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --partition=accel
+#SBATCH --partition=accel-2
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=01:00:00
-#SBATCH --job-name=text_embedding
+#SBATCH --time=60:00:00
+#SBATCH --job-name=train_img2img
 #SBATCH --output=job_%j.out
 #SBATCH --error=job_%j.err
 #SBATCH --mem=32GB
@@ -28,12 +28,13 @@ python -m img2img.training \
     --model_config_path assets/configs/base.json \
     --seed 42 \
     --data_split 0.8 \
-    --gradient_accumulation_steps 1 \
-    --batch_size 32 \
-    --training_steps 1000 \
+    --gradient_accumulation_steps 8 \
+    --batch_size 768 \
+    --training_steps 12000 \
     --validation_frequency 100 \
-    --checkpoint_frequency 250 \
+    --checkpoint_frequency 500 \
     --benchmarks_path assets/benchmarks/ \
     --wandb_project img2img_reprojector_train \
+    --load_checkpoint runs/16061/model.pt \
     --img_extension ".jpg" \
     --upload_checkpoints_to_wandb True \

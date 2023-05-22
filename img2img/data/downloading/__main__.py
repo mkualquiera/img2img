@@ -53,7 +53,7 @@ def download_parquet(
         enable_wandb=True,
         wandb_project="img2img_download",
         output_folder=output_path,
-        image_size=224,  # Default for ViT
+        image_size=512,  # Default for ViT
     )
     logger.info("Download complete!")
 

@@ -1,12 +1,12 @@
 import torch
 from PIL import Image
-from diffusers import StableDiffusionImageVariationPipeline
+from diffusers import StableDiffusionImageVariationPipeline, AutoencoderKL
 import wandb
 from loguru import logger
 
 
 def sample_baseline(
-    image: Image.Image, seed: int | torch.Tensor = 42, num_img: int = 4
+    image: Image.Image, seed: int | torch.Tensor = 42, num_img: int = 4, pipeline=None
 ) -> list[Image.Image]:
     """Samples images using the embeddings.
 
@@ -26,12 +26,16 @@ def sample_baseline(
         List of images.
     """
 
-    pipeline = StableDiffusionImageVariationPipeline.from_pretrained(
-        "lambdalabs/sd-image-variations-diffusers",
-        torch_dtype=torch.float16,
-        revision="2ddbd90b14bc5892c19925b15185e561bc8e5d0a",
-    )
-    pipeline = pipeline.to("cuda")  # type: ignore
+    if pipeline is None:
+        pipeline = StableDiffusionImageVariationPipeline.from_pretrained(
+            "lambdalabs/sd-image-variations-diffusers",
+            revision="v2.0",
+        )
+        pipeline = pipeline.to("cuda")  # type: ignore
+        pipeline = AutoencoderKL.from_pretrained("runwayml/stable-diffusion-v1-5")
+        created_pipeline = True
+    else:
+        created_pipeline = False
 
     if isinstance(seed, int):
         generator = torch.Generator("cuda").manual_seed(seed)
@@ -49,7 +53,8 @@ def sample_baseline(
         height=512,
     ).images  # type: ignore
 
-    del pipeline
+    if created_pipeline:
+        del pipeline
 
     return results
 
